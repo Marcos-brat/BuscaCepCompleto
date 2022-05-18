@@ -1,56 +1,108 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div class="col-md-6 mx-auto">
+    <div class="mb-5">
+      <label class="form-label">Selecione o Estado</label>
+      <select class="form-select" @change="buscaMunicipios" v-model="estadoSelected">
+        <option value="">Estados</option>
+        <option v-for="estado in estados" :key="estado.id" :value="estado.sigla"> {{ estado.nome }}</option>
+      </select>
+      <label class="">Selecione a cidade</label>
+      <select class="form-select" @change="buscaMunicipios" v-model="municipioSelected">
+        <option value="">Municipios</option>
+        <option v-for="municipio in municipios" :key="municipio.id" :value="municipio.nome"> {{ municipio.nome }}</option>
+      </select>
+      <label class="">Referência</label>
+      <input class="form-control" v-model="referencia" placeholder="Digite a sua referência" />
+      <button class="btn btn-primary mt-4" @click="buscarCeps">Buscar</button>
+      <div v-if="ceps.length > 0">
+        <h1>Ceps Encontrados Pelo Buscador</h1>
+        <ul>
+          <li v-for="cep in ceps" :key="cep.cep" @click="mostrarModal()">
+            CEP: {{ cep.cep }} - Bairro: {{ cep.bairro }} - Logradouro:
+            {{ cep.logradouro }}
+            <Popup v-if="popupTriggers.buttonTrigger" :TogglePopup="() => TogglePopup('buttonTrigger')" :cep="cep.cep" >
+            </Popup>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import axios from 'axios'
+import { ref } from 'vue';
+import Popup from './Popup.vue';
+
 export default {
   name: 'HelloWorld',
   props: {
     msg: String
+  },
+  data() {
+    return {
+      estados: [],
+      municipios: [],
+      estadoSelected: '',
+      municipioSelected: '',
+      referencia: '',
+      ceps: []
+    }
+  },
+  mounted() {
+    this.buscaEstados();
+  },
+  setup() {
+    const popupTriggers = ref({
+      buttonTrigger: false,
+      timedTrigger: false
+    });
+
+    const TogglePopup = (trigger) => {
+      popupTriggers.value[trigger] = !popupTriggers.value[trigger]
+
+    }
+
+    setTimeout(() => {
+      popupTriggers.value.timedTrigger = true;
+    }, 3000);
+
+    return {
+      Popup,
+      popupTriggers,
+      TogglePopup
+    }
+  },
+
+  methods: {
+    buscaEstados() {
+      axios.get('https://servicodados.ibge.gov.br/api/v1/localidades/estados')
+        .then(response => {
+          this.estados = response.data;
+        })
+        .catch(error => {
+          console.log(error);
+        })
+    },
+    buscaMunicipios() {
+      axios.get('https://servicodados.ibge.gov.br/api/v1/localidades/estados/' + this.estadoSelected + '/municipios')
+        .then(response => {
+          this.municipios = response.data;
+        })
+        .catch(error => {
+          console.log(error);
+        })
+    },
+    buscarCeps() {
+      axios.get(`https://viacep.com.br/ws/${this.estadoSelected}/${this.municipioSelected}/${this.referencia}/json/`)
+        .then(response => { this.ceps = response.data })
+    },
+    mostrarModal() {
+      this.TogglePopup('buttonTrigger')
+    }
+  },
+  components: {
+    Popup
   }
 }
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>
